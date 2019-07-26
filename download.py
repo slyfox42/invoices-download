@@ -2,8 +2,7 @@ import email
 import imaplib
 import os
 import shutil
-from datetime import datetime, date, timedelta
-from email.utils import parsedate_tz, mktime_tz
+from datetime import date, timedelta
 from save_invoice import get_file_path, move_invoice
 import constants as c
 
@@ -11,8 +10,6 @@ import constants as c
 class EmailManager:
 
     connection = None
-    error = None
-    attachments = {}
     default_mailbox = "Inbox"
 
     def get_connection(self):
@@ -21,7 +18,7 @@ class EmailManager:
             self.connection.login(c.EMAIL_ADDRESS,
                                   c.EMAIL_PASSWORD)
             self.connection.select(
-                self.default_mailbox, readonly=True  # so we can mark mails as read
+                self.default_mailbox, readonly=True
             )
 
         return self.connection
@@ -32,12 +29,6 @@ class EmailManager:
             self.connection = None
 
     def save_attachments(self, messages):
-        """
-        Given a message, save its attachments to the specified
-        download folder (default is .tmp)
-
-        return: file path to attachment
-        """
         print("Saving message attachments...")
         self.get_connection()
 
@@ -74,15 +65,15 @@ class EmailManager:
 
         return attachments_paths
 
-    def fetch_unseen_emails(
+    def fetch_emails(
             self
     ):
         since = (date.today() - timedelta(7)).strftime("%d-%b-%Y")
 
-        print("> Fetching first unseen mail containing attachment...")
+        print("> Fetching emails...")
         self.get_connection()
         (result, messages) = self.connection.search(
-            None, f'(FROM "{c.APPLE_ADDRESS}" SENTSINCE "{since}" UNSEEN)'
+            None, f'(FROM "{c.FROM_ADDRESS}" SENTSINCE "{since}" UNSEEN)'
         )
 
         if result == "OK":
@@ -129,7 +120,7 @@ def save_invoices():
 
     email_manager = EmailManager()
 
-    messages = email_manager.fetch_unseen_emails()
+    messages = email_manager.fetch_emails()
     if len(messages):
         attachments = email_manager.save_attachments(messages)
         file_paths = [get_file_path(attachment) for attachment in attachments]
@@ -140,5 +131,6 @@ def save_invoices():
 
         shutil.rmtree(c.TMP_FOLDER)
 
-save_invoices()
+if __name__ == "__main__":
+    save_invoices()
 
