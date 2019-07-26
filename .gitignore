@@ -1,3 +1,4 @@
-results/
 prova*
 .env
+.tmp
+2019/*

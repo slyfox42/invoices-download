@@ -1,12 +1,11 @@
 import email
 import imaplib
 import os
+import shutil
 from datetime import datetime, date, timedelta
 from email.utils import parsedate_tz, mktime_tz
-
-OUTPUT_FOLDER = 'results'
-# APPLE_ADDRESS = 'EMEA_Invoicing@email.apple.com'
-APPLE_ADDRESS = 'federico@pixel.it'
+from save_invoice import get_file_path, move_invoice
+import constants as c
 
 
 class EmailManager:
@@ -18,12 +17,12 @@ class EmailManager:
 
     def get_connection(self):
         if not self.connection:
-            self.connection = imaplib.IMAP4_SSL(os.getenv("SMTP_SERVER", ""))
-            self.connection.login(os.getenv("EMAIL_ADDRESS", ""),
-                                  os.getenv("EMAIL_PASSWORD", ""))
+            self.connection = imaplib.IMAP4_SSL(c.SMTP_SERVER)
+            self.connection.login(c.EMAIL_ADDRESS,
+                                  c.EMAIL_PASSWORD)
             self.connection.select(
-                self.default_mailbox, readonly=False
-            )  # so we can mark mails as read
+                self.default_mailbox, readonly=True  # so we can mark mails as read
+            )
 
         return self.connection
 
@@ -42,12 +41,11 @@ class EmailManager:
         print("Saving message attachments...")
         self.get_connection()
 
-        if not os.path.exists(OUTPUT_FOLDER):
-            os.makedirs(OUTPUT_FOLDER)
+        if not os.path.exists(c.TMP_FOLDER):
+            os.makedirs(c.TMP_FOLDER)
 
         attachments_paths = []
         for msg in messages:
-            (name, address) = EmailManager.parse_email_address(msg["from"])
 
             for part in msg.walk():
                 if part.get_content_maintype() == "multipart":
@@ -60,7 +58,7 @@ class EmailManager:
                 if not filename.endswith('.pdf'):
                     continue
 
-                att_path = os.path.join(OUTPUT_FOLDER, filename)
+                att_path = os.path.join(c.TMP_FOLDER, filename)
                 attachments_paths.append(att_path)
 
                 if not os.path.isfile(att_path):
@@ -74,21 +72,17 @@ class EmailManager:
             f"{'Attachments' if len(attachments_paths) > 1 else 'Attachment'} saved correctly."
         )
 
-    def get_first_unseen(
-            self,
-            since=(date.today() - timedelta(7)).strftime("%d-%b-%Y"),
-    ):
-        """
-         Given a list of whitelisted addresses, fetches
-         first unseen message from one of the addresses
-         with an attachment in the body.
+        return attachments_paths
 
-         return: msg object
-         """
+    def fetch_unseen_emails(
+            self
+    ):
+        since = (date.today() - timedelta(7)).strftime("%d-%b-%Y")
+
         print("> Fetching first unseen mail containing attachment...")
         self.get_connection()
         (result, messages) = self.connection.search(
-            None, f'(FROM "{APPLE_ADDRESS}" SENTSINCE "{since}" UNSEEN)'
+            None, f'(FROM "{c.APPLE_ADDRESS}" SENTSINCE "{since}" UNSEEN)'
         )
 
         if result == "OK":
@@ -99,7 +93,6 @@ class EmailManager:
             for el in id_list[::-1]:
                 (result, data) = self.connection.fetch(el, "(RFC822)")
                 msg = email.message_from_bytes(data[0][1])
-                (name, address) = self.parse_email_address(msg["From"])
 
                 for part in msg.walk():
                     if part.get_content_maintype() == "multipart":
@@ -109,16 +102,16 @@ class EmailManager:
 
                     messages.append(msg)
 
-            # for num in id_list:
-            #     self.connection.copy(num, 'Fatture')
-            #     self.connection.store(num, '+FLAGS', '\\Deleted')
-            #     self.connection.expunge()
+            for num in id_list:
+                self.connection.copy(num, c.INVOICES_MAIL_FOLDER)
+                self.connection.store(num, '+FLAGS', '\\Deleted')
+                self.connection.expunge()
 
             self.close_connection()
 
             if not len(messages):
                 print("> No messages with attachment(s) found.")
-                return None
+                return messages
 
             print("> Message(s) fetched successfully.")
 
@@ -131,30 +124,21 @@ class EmailManager:
                 f"Connection Error searching for emails. Result: {result}"
             )
 
-    @staticmethod
-    def parse_email_address(email_address):
-        """
-        Helper function to parse out the email address from the message
 
-        return: tuple (name, address). Eg. ('John Doe', 'jdoe@example.com')
-        """
-        return email.utils.parseaddr(email_address)
-
-    @staticmethod
-    def parse_email_date(email_date):
-        timestamp = mktime_tz(parsedate_tz(email_date))
-        iso_string = datetime.utcfromtimestamp(timestamp).isoformat()
-
-        return iso_string
-
-
-def store_invoice():
+def save_invoices():
 
     email_manager = EmailManager()
 
-    messages = email_manager.get_first_unseen()
+    messages = email_manager.fetch_unseen_emails()
     if len(messages):
-        email_manager.save_attachments(messages)
+        attachments = email_manager.save_attachments(messages)
+        file_paths = [get_file_path(attachment) for attachment in attachments]
+        zipped = zip(attachments, file_paths)
 
+        for invoice_path, new_file_path in zipped:
+            move_invoice(invoice_path, new_file_path)
 
-store_invoice()
+        shutil.rmtree(c.TMP_FOLDER)
+
+save_invoices()
+
