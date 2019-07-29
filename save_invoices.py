@@ -75,14 +75,12 @@ def scp_copy(invoice_path, new_file_path):
         host=c.SSH_HOSTNAME,
         user=c.SSH_USERNAME,
         connect_kwargs={
-            "key_filename": c.SSH_KEY_PATH,
-            passphrase: c.SSH_PASSPHRASE
+            "key_filename": c.SSH_KEY_PATH
         },
     )
-
+    conn.config.sudo.password = c.SSH_PASSWORD
     directories = f'{c.SCP_BASE_PATH}/{os.path.dirname(new_file_path)}'
-    conn.run(f'mkdir -p {directories}')
-    print(f'{c.SCP_BASE_PATH}/{new_file_path}')
+    conn.sudo(f'mkdir -p {directories}')
     conn.put(invoice_path, f'{c.SCP_BASE_PATH}/{new_file_path}')
 
     conn.close()
