@@ -3,7 +3,7 @@ import imaplib
 import os
 import shutil
 from datetime import date, timedelta
-from save_invoice import get_file_path, move_invoice
+from save_invoices import get_file_path, scp_copy
 import constants as c
 
 
@@ -127,8 +127,7 @@ def save_invoices():
         zipped = zip(attachments, file_paths)
 
         for invoice_path, new_file_path in zipped:
-            move_invoice(invoice_path, new_file_path)
-            print(new_file_path)
+            scp_copy(invoice_path, new_file_path)
 
         shutil.rmtree(c.TMP_FOLDER)
 

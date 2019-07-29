@@ -1,7 +1,7 @@
 import re
 import os
-import shutil
 import subprocess
+from fabric import Connection
 from datetime import datetime, timedelta
 from calendar import monthrange
 import constants as c
@@ -13,24 +13,24 @@ DOC_DATE_REGEXP = {
 }
 
 MONTHS = {
-    1: '01 Gennaio',
-    2: '02 Febbraio',
-    3: '03 Marzo',
-    4: '04 Aprile',
-    5: '05 Maggio',
-    6: '06 Giugno',
-    7: '07 Luglio',
-    8: '08 Agosto',
-    9: '09 Settembre',
-    10: '10 Ottobre',
-    11: '11 Novembre',
-    12: '12 Dicembre'
+    1: '01_Gennaio',
+    2: '02_Febbraio',
+    3: '03_Marzo',
+    4: '04_Aprile',
+    5: '05_Maggio',
+    6: '06_Giugno',
+    7: '07_Luglio',
+    8: '08_Agosto',
+    9: '09_Settembre',
+    10: '10_Ottobre',
+    11: '11_Novembre',
+    12: '12_Dicembre'
 }
 
 
 def parse_document_date(invoice_path):
     process = subprocess.Popen(
-        ['pdftotext', '-raw', invoice_path, '-'], stdout=subprocess.PIPE)
+        ['/usr/local/bin/pdftotext', '-raw', invoice_path, '-'], stdout=subprocess.PIPE)
     output = process.stdout.read().decode("utf-8")
     document_type = output.split('\n')[1]
 
@@ -66,17 +66,22 @@ def get_file_path(invoice_path):
         end_day = end_of_week.strftime(
             '%d') if end_of_week <= last_day_of_month_date else last_day_of_month_date.strftime('%d')
 
-    return f'{c.INVOICES_BASE_PATH}/{year_folder}/{month_folder}/{start_day}-{end_day}/{os.path.basename(invoice_path)}'
+    return f'{year_folder}/{month_folder}/{start_day}-{end_day}/{os.path.basename(invoice_path)}'
 
 
-def move_invoice(invoice_path, new_file_path):
-    if os.path.exists(new_file_path):
-        return
+def scp_copy(invoice_path, new_file_path):
+    """ Securely copy the file to the server. """
+    conn = Connection(
+        host=c.SSH_HOSTNAME,
+        user=c.SSH_USERNAME,
+        connect_kwargs={
+            "key_filename": c.SSH_KEY_PATH,
+        },
+    )
 
-    directory = os.path.dirname(new_file_path)
+    directories = f'{c.SCP_BASE_PATH}/{os.path.dirname(new_file_path)}'
+    conn.run(f'mkdir -p {directories}')
+    print(f'{c.SCP_BASE_PATH}/{new_file_path}')
+    conn.put(invoice_path, f'{c.SCP_BASE_PATH}/{new_file_path}')
 
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-
-    shutil.copyfile(invoice_path, new_file_path)
-
+    conn.close()

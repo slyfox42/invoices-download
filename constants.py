@@ -11,4 +11,11 @@ TMP_FOLDER = os.getenv("TMP_FOLDER", "")
 FROM_ADDRESS = os.getenv("FROM_ADDRESS", "")
 
 INVOICES_MAIL_FOLDER = os.getenv("INVOICES_MAIL_FOLDER", "")
-INVOICES_BASE_PATH = os.getenv("INVOICES_BASE_PATH", "")
+
+SSH_HOSTNAME = os.getenv("SSH_HOSTNAME", "")
+SSH_USERNAME = os.getenv("SSH_USERNAME", "")
+SSH_PASSWORD = os.getenv("SSH_PASSWORD", "")
+
+SCP_BASE_PATH = os.getenv("SCP_BASE_PATH", "")
+
+
