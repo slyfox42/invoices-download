@@ -76,6 +76,7 @@ def scp_copy(invoice_path, new_file_path):
         user=c.SSH_USERNAME,
         connect_kwargs={
             "key_filename": c.SSH_KEY_PATH,
+            passphrase: c.SSH_PASSPHRASE
         },
     )
 
