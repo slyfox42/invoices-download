@@ -1,0 +1,3 @@
+container_name: "download-fatture"
+volumes:
+  - /fatture-apple:/Fatture_Apple

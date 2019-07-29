@@ -128,6 +128,7 @@ def save_invoices():
 
         for invoice_path, new_file_path in zipped:
             move_invoice(invoice_path, new_file_path)
+            print(new_file_path)
 
         shutil.rmtree(c.TMP_FOLDER)
 
