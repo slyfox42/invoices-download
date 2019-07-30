@@ -70,12 +70,13 @@ class EmailManager:
         print("> Fetching emails...")
         self.get_connection()
         (result, messages) = self.connection.search(
-            None, f'(FROM "{c.FROM_ADDRESS}")'
+            None, f'(FROM "{c.FROM_ADDRESS}" UNSEEN)'
         )
 
         if result == "OK":
             id_list = messages[0].split()
             print(len(id_list))
+            print(id_list)
             messages = []
 
             for el in id_list[::-1]:
@@ -90,14 +91,14 @@ class EmailManager:
 
                     messages.append(msg)
 
-            try:
-                for num in id_list:
+            for num in id_list:
+                try:
                     self.connection.copy(num, c.INVOICES_MAIL_FOLDER)
                     self.connection.store(num, '+FLAGS', '\\Deleted')
                     self.connection.expunge()
 
-            except Exception as e:
-                print(e)
+                except Exception:
+                    print(f'Error copying message: {num}')
 
             self.close_connection()
 
