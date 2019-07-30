@@ -80,7 +80,12 @@ def scp_copy(invoice_path, new_file_path):
     )
     conn.config.sudo.password = c.SSH_PASSWORD
     directories = f'{c.SCP_BASE_PATH}/{os.path.dirname(new_file_path)}'
+    # temporarily move te file to the user's $HOME directory
+    filename = os.path.basename(invoice_path)
+    tmp_file_path = f'/Users/{c.SSH_USERNAME}/{filename}'
+    conn.put(invoice_path, tmp_file_path)
+    # create correct directory with sudo under shared folder, move file
     conn.sudo(f'mkdir -p {directories}')
-    conn.put(invoice_path, f'{c.SCP_BASE_PATH}/{new_file_path}')
+    conn.sudo(f'mv {tmp_file_path} {c.SCP_BASE_PATH}/{new_file_path}')
 
     conn.close()

@@ -18,7 +18,7 @@ class EmailManager:
             self.connection.login(c.EMAIL_ADDRESS,
                                   c.EMAIL_PASSWORD)
             self.connection.select(
-                self.default_mailbox, readonly=True
+                self.default_mailbox, readonly=False
             )
 
         return self.connection
@@ -119,17 +119,21 @@ class EmailManager:
 def save_invoices():
 
     email_manager = EmailManager()
+    try:
+        messages = email_manager.fetch_emails()
+        if len(messages):
+            attachments = email_manager.save_attachments(messages)
+            file_paths = [get_file_path(attachment) for attachment in attachments]
+            zipped = zip(attachments, file_paths)
 
-    messages = email_manager.fetch_emails()
-    if len(messages):
-        attachments = email_manager.save_attachments(messages)
-        file_paths = [get_file_path(attachment) for attachment in attachments]
-        zipped = zip(attachments, file_paths)
+            for invoice_path, new_file_path in zipped:
+                scp_copy(invoice_path, new_file_path)
 
-        for invoice_path, new_file_path in zipped:
-            scp_copy(invoice_path, new_file_path)
-
-        shutil.rmtree(c.TMP_FOLDER)
+            invoices_list = '\n'.join([os.path.basename(invoice) for invoice in attachments])
+            print(f'Imported invoices:\n{invoices_list}')
+            shutil.rmtree(c.TMP_FOLDER)
+    except Exception as e:
+        print(e)
 
 if __name__ == "__main__":
     save_invoices()
