@@ -97,7 +97,6 @@ class SSH_Manager:
         directory_exists = True
         with conn.cd(c.SCP_BASE_PATH):
             if exists(conn, new_file_path):
-                print("File already exists. Skipping...")
 
                 return None
 
