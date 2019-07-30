@@ -69,7 +69,7 @@ class Email_Manager:
             self
     ):
         print("> Fetching emails...")
-        since = (date.today() - timedelta(7)).strftime("%d-%b-%Y")
+        since = (date.today() - timedelta(9)).strftime("%d-%b-%Y")
         self.get_connection()
         (result, messages) = self.connection.search(
             None, f'(FROM "{c.FROM_ADDRESS}" SINCE "{since}")'
