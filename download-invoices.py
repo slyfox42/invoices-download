@@ -46,7 +46,7 @@ class Email_Manager:
 
                 filename = part.get_filename()
 
-                if not filename.endswith('.pdf'):
+                if not filename or not filename.endswith('.pdf'):
                     continue
 
                 att_path = os.path.join(c.TMP_FOLDER, filename)
