@@ -2,3 +2,5 @@ prova*
 .env
 .tmp
 2019/*
+import-fatture
+*.log
