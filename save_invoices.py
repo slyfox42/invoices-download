@@ -4,6 +4,7 @@ import subprocess
 from fabric import Connection
 from datetime import datetime, timedelta
 from calendar import monthrange
+from patchwork.files import exists
 import constants as c
 
 DOC_DATE_REGEXP = {
@@ -68,24 +69,51 @@ def get_file_path(invoice_path):
 
     return f'{year_folder}/{month_folder}/{start_day}-{end_day}/{os.path.basename(invoice_path)}'
 
+class SSH_Manager:
+    connection = None
 
-def scp_copy(invoice_path, new_file_path):
-    """ Securely copy the file to the server. """
-    conn = Connection(
-        host=c.SSH_HOSTNAME,
-        user=c.SSH_USERNAME,
-        connect_kwargs={
-            "key_filename": c.SSH_KEY_PATH
-        },
-    )
-    conn.config.sudo.password = c.SSH_PASSWORD
-    directories = f'{c.SCP_BASE_PATH}/{os.path.dirname(new_file_path)}'
-    # temporarily move te file to the user's $HOME directory
-    filename = os.path.basename(invoice_path)
-    tmp_file_path = f'/Users/{c.SSH_USERNAME}/{filename}'
-    conn.put(invoice_path, tmp_file_path)
-    # create correct directory with sudo under shared folder, move file
-    conn.sudo(f'mkdir -p {directories}')
-    conn.sudo(f'mv {tmp_file_path} {c.SCP_BASE_PATH}/{new_file_path}')
+    def get_connection(self):
+        if not self.connection:
+            self.connection = Connection(
+                host=c.SSH_HOSTNAME,
+                user=c.SSH_USERNAME,
+                connect_kwargs={
+                    "key_filename": c.SSH_KEY_PATH
+                },
+            )
+            self.connection.config.sudo.password = c.SSH_PASSWORD
 
-    conn.close()
+        return self.connection
+
+    def close_connection(self):
+        if not self.connection:
+            return
+
+        self.connection.close()
+        self.connection = None
+
+    def scp_copy(self, invoice_path, new_file_path):
+        conn = self.get_connection()
+        directory_exists = True
+        with conn.cd(c.SCP_BASE_PATH):
+            if exists(conn, new_file_path):
+                print("File already exists. Skipping...")
+
+                return None
+
+            directories = f'{c.SCP_BASE_PATH}/{os.path.dirname(new_file_path)}'
+
+            if not exists(conn, directories):
+                print('Directory non existent. Creating...')
+                directory_exists = False
+
+        if not directory_exists:
+            conn.sudo(f'mkdir -p {directories}')
+
+        # temporarily move te file to the user's $HOME directory
+        filename = os.path.basename(invoice_path)
+        tmp_file_path = f'/Users/{c.SSH_USERNAME}/{filename}'
+        conn.put(invoice_path, tmp_file_path)
+        conn.sudo(f'mv {tmp_file_path} {c.SCP_BASE_PATH}/{new_file_path}')
+
+        return filename

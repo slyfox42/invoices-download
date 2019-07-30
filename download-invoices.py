@@ -2,14 +2,15 @@ import email
 import imaplib
 import os
 import shutil
-from save_invoices import get_file_path, scp_copy
+from datetime import date, timedelta
+from save_invoices import get_file_path, SSH_Manager
 import constants as c
 
 
-class EmailManager:
+class Email_Manager:
 
     connection = None
-    default_mailbox = "Inbox"
+    default_mailbox = c.INVOICES_MAILBOX
 
     def get_connection(self):
         if not self.connection:
@@ -68,19 +69,19 @@ class EmailManager:
             self
     ):
         print("> Fetching emails...")
+        since = (date.today() - timedelta(7)).strftime("%d-%b-%Y")
         self.get_connection()
         (result, messages) = self.connection.search(
-            None, f'(FROM "{c.FROM_ADDRESS}" UNSEEN)'
+            None, f'(FROM "{c.FROM_ADDRESS}" SINCE "{since}")'
         )
 
         if result == "OK":
             id_list = messages[0].split()
-            print(len(id_list))
-            print(id_list)
             messages = []
 
-            for el in id_list[::-1]:
+            for el in id_list:
                 (result, data) = self.connection.fetch(el, "(RFC822)")
+
                 msg = email.message_from_bytes(data[0][1])
 
                 for part in msg.walk():
@@ -91,22 +92,13 @@ class EmailManager:
 
                     messages.append(msg)
 
-            for num in id_list:
-                try:
-                    self.connection.copy(num, c.INVOICES_MAIL_FOLDER)
-                    self.connection.store(num, '+FLAGS', '\\Deleted')
-                    self.connection.expunge()
-
-                except Exception:
-                    print(f'Error copying message: {num}')
-
             self.close_connection()
 
             if not len(messages):
                 print("> No messages with attachment(s) found.")
                 return messages
 
-            print("> Message(s) fetched successfully.")
+            print(f'Fetched {len(id_list)} messages.')
 
             return messages
 
@@ -120,22 +112,33 @@ class EmailManager:
 
 def save_invoices():
 
-    email_manager = EmailManager()
+    email_manager = Email_Manager()
+    ssh_manager = SSH_Manager()
+    saved = list()
     try:
         messages = email_manager.fetch_emails()
+
         if len(messages):
             attachments = email_manager.save_attachments(messages)
+            attachments = list(set(attachments))
             file_paths = [get_file_path(attachment) for attachment in attachments]
             zipped = zip(attachments, file_paths)
 
             for invoice_path, new_file_path in zipped:
-                scp_copy(invoice_path, new_file_path)
+                invoice = ssh_manager.scp_copy(invoice_path, new_file_path)
+                saved.append(invoice)
 
-            invoices_list = '\n'.join([os.path.basename(invoice) for invoice in attachments])
-            print(f'Imported invoices:\n{invoices_list}')
+            ssh_manager.close_connection()
+            saved = [x for x in saved if x]
+            invoices_list = '\n'.join(saved)
+            print(f'Imported invoices:\n{invoices_list}' if len(saved) else 'No invoices imported.')
             shutil.rmtree(c.TMP_FOLDER)
+
     except Exception as e:
         print(e)
+
+    finally:
+        ssh_manager.close_connection()
 
 if __name__ == "__main__":
     save_invoices()

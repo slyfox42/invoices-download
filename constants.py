@@ -10,7 +10,7 @@ EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
 TMP_FOLDER = os.getenv("TMP_FOLDER", "")
 FROM_ADDRESS = os.getenv("FROM_ADDRESS", "")
 
-INVOICES_MAIL_FOLDER = os.getenv("INVOICES_MAIL_FOLDER", "")
+INVOICES_MAILBOX = os.getenv("INVOICES_MAILBOX", "")
 
 SSH_HOSTNAME = os.getenv("SSH_HOSTNAME", "")
 SSH_USERNAME = os.getenv("SSH_USERNAME", "")

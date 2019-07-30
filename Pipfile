@@ -10,6 +10,7 @@ autopep8 = "*"
 python-dotenv = "*"
 fabric = "*"
 paramiko = "*"
+patchwork = "*"
 
 [requires]
 python_version = "3.7"
