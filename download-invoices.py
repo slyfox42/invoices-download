@@ -2,7 +2,6 @@ import email
 import imaplib
 import os
 import shutil
-from datetime import date, timedelta
 from save_invoices import get_file_path, scp_copy
 import constants as c
 
@@ -68,12 +67,10 @@ class EmailManager:
     def fetch_emails(
             self
     ):
-        since = (date.today() - timedelta(7)).strftime("%d-%b-%Y")
-
         print("> Fetching emails...")
         self.get_connection()
         (result, messages) = self.connection.search(
-            None, f'(FROM "{c.FROM_ADDRESS}" SENTSINCE "{since}" UNSEEN)'
+            None, f'(FROM "{c.FROM_ADDRESS}")'
         )
 
         if result == "OK":
@@ -93,10 +90,14 @@ class EmailManager:
 
                     messages.append(msg)
 
-            for num in id_list:
-                self.connection.copy(num, c.INVOICES_MAIL_FOLDER)
-                self.connection.store(num, '+FLAGS', '\\Deleted')
-                self.connection.expunge()
+            try:
+                for num in id_list:
+                    self.connection.copy(num, c.INVOICES_MAIL_FOLDER)
+                    self.connection.store(num, '+FLAGS', '\\Deleted')
+                    self.connection.expunge()
+
+            except Exception as e:
+                print(e)
 
             self.close_connection()
 
