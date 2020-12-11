@@ -64,8 +64,12 @@ def get_file_path(invoice_path):
             '%y.%m.%d')
 
     if date_obj.month == 12:
-        end_day = end_of_week.strftime(
-            '%d') if end_of_week <= last_day_of_month_date else last_day_of_month_date.strftime('%d')
+        if end_of_week <= last_day_of_month_date:
+            end_day = end_of_week.strftime('%d')
+        elif end_of_week.month == 1:
+            end_day = '31'
+        else:
+            end_day = end_of_week.strftime("%m.%d")
 
     return f'{year_folder}/{month_folder}/{start_day}-{end_day}/{os.path.basename(invoice_path)}'
 
